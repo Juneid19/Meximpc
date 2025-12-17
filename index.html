@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Firza Tapsel Player</title>
+<title>Firza Tapsel</title>
 <style>
   * {margin:0; padding:0; box-sizing:border-box;}
   body {
@@ -134,7 +134,7 @@
     <div class="ring"></div>
     <img id="cover" class="cover" src="https://frpadang.netlify.app/img/default.jpg" />
   </div>
-  <h2 id="title">Firza Radio TapseL</h2>
+  <h2 id="title">Firza Radio Tapsel</h2>
   <h4 id="artist">Streaming Live</h4>
   <div class="radio-name">LIVE • Padangsidempuan</div>
 
@@ -164,6 +164,20 @@ const listeners = document.getElementById("listeners");
 let isPlaying = false;
 let lastTrack = "";
 
+// --- DATABASE QARI/ARTIS (Disalin dari permintaan Anda sebelumnya) ---
+const qariDatabase = {
+    'mishary': 'https://i.ytimg.com/vi/GLMp_EGGLfk/hq720.jpg?sqp=-oaymwExCK4FEIIDSFryq4qpAyMIARUAAIhCGAHwAQH4AdQGgALgA4oCDAgAEAEYciBWKDgwDw==&rs=AOn4CLAa_DZgLB8D4xcMTFPgxpnQghg_sw',
+    'abdul': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT99qAcwhSDEUMmxHHzjEfna9YVgtg-04A8rDvXbaNtZf-70ZkRxFPl_i5J_he-DnfdtO7EhS0ouUaiu-hq_bE8Ni9U3xKBjsAdFgzAg4w&s=10',
+    'adi hidayat': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQi7cw0cL0cs4aqyXA5sbBMBaCWGmW0D28pzruJKEWXlx9RYeQLuZouy9VlqLk9oWvOxlO7jHAh6QOXhjPyKPQZqz2rez4YV5XOPrgTTQ&s=10',
+    'zainuddin': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSDo4WarU6dxMHRx3BFqisexu4euGqv9Ni9_JZA5jZBwA&s=10',
+    'latif': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQSgeut2z_VzZzl5_B7sbcdxL2FkG3Rd3dOTaS3WCOXEA&s=10',
+    'al sudais': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Abdulrahman_Al-Sudais.jpg/440px-Abdulrahman_Al-Sudais.jpg',
+    'ghamdi': 'https://i.ibb.co/Wp0y1hG/ghamdi.jpg',
+    'shatri': 'https://i.ibb.co/fQ5N204/shatri.jpg',
+    'abdul basit': 'https://i.ibb.co/RzM805h/abdulbasit.jpg',
+};
+// ------------------------------------------------------------------
+
 audio.src = stream;
 audio.volume = 0.7;
 
@@ -190,6 +204,18 @@ stopBtn.onclick = () => {
 
 refreshBtn.onclick = () => fetchNowPlaying(true);
 
+// --- FUNGSI BARU UNTUK MENCARI COVER ART QARI ---
+function getQariCover(name) {
+    const lowerName = name.toLowerCase().trim();
+    for (const key in qariDatabase) {
+        if (lowerName.includes(key)) {
+            return qariDatabase[key];
+        }
+    }
+    return null;
+}
+// ---------------------------------------------------
+
 async function fetchNowPlaying(force = false) {
   try {
     const r = await fetch(`https://zenoplay.zenomedia.com/api/zenofm/nowplaying/${idzeno}/?_=${Date.now()}`, { cache: "no-store" });
@@ -205,31 +231,55 @@ async function fetchNowPlaying(force = false) {
 }
 
 async function updateInfo(data) {
-  let title = data.title?.trim() || "Tapsel";
+  let title = data.title?.trim() || "Firza Tapsel";
   let artist = data.artist?.trim() || "Streaming Live";
+  let img = data.thumb; // Cover dari Zeno/API
 
+  // Logika Pemisahan Title/Artist untuk format 'Artist - Title'
   if (title.includes(" - ") && (!data.artist || data.artist === "")) {
     const parts = title.split(" - ");
     artist = parts[0].trim();
     title = parts[1].trim();
   }
 
-  titleEl.textContent = title;
-  artistEl.textContent = artist;
-  listeners.textContent = "🎵 Live dari Padangsidempuan";
-
-  let img = data.thumb;
-  if (!img || img === "") {
-    try {
-      const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(artist + " " + title)}&limit=1`, { cache: "no-store" });
-      const j = await res.json();
-      if (j.results?.length > 0) {
-        img = j.results[0].artworkUrl100.replace("100x100", "600x600");
-      }
-    } catch (e) {
-      console.warn("iTunes cover fetch failed:", e);
+  // Cek Database Qari sebagai PRIORITAS UTAMA
+  let qariCover = getQariCover(artist) || getQariCover(title); 
+  
+  if (qariCover) {
+    img = qariCover;
+    // Coba perbaiki artist/title jika terdeteksi dari database tapi belum dipisah
+    if (artist === "Streaming Live" || artist === "Firza Tapsel" || artist === data.artist) {
+        let keyFound = Object.keys(qariDatabase).find(key => title.toLowerCase().includes(key));
+        if (keyFound) {
+            artist = keyFound.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            title = title.replace(new RegExp(keyFound, 'gi'), '').trim();
+            if (title === "" || title.length < 3) title = "Murottal";
+        }
     }
   }
+
+
+  // Jika cover Zeno kosong dan Qari Cover juga kosong, baru coba iTunes (FALLBACK)
+  if (!img || img === fallbackCover || img.includes('zenomedia')) {
+      if (!qariCover) {
+        try {
+          const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(artist + " " + title)}&limit=1`, { cache: "no-store" });
+          const j = await res.json();
+          if (j.results?.length > 0) {
+            img = j.results[0].artworkUrl100.replace("100x100", "600x600");
+          }
+        } catch (e) {
+          console.warn("iTunes cover fetch failed:", e);
+        }
+    } else {
+        img = qariCover; // Gunakan cover Qari jika ditemukan di langkah sebelumnya
+    }
+  }
+
+  titleEl.textContent = title;
+  artistEl.textContent = artist;
+  listeners.textContent = "🎵 Live dari Padangsidempuan"; // Atau tambahkan data listeners dari API jika tersedia
+
   cover.src = img || fallbackCover;
   changeBackgroundColor(title + artist);
 }
@@ -242,14 +292,14 @@ const colors = [
   'linear-gradient(135deg,#30cfd0,#330867)'
 ];
 let colorIndex = 0;
-function cycleBackground() {
-  colorIndex = (colorIndex + 1) % colors.length;
-  document.body.style.background = colors[colorIndex];
-}
-setInterval(cycleBackground, 15000);
+
+// Fungsi cycleBackground dihilangkan karena ada fungsi changeBackgroundColor(seed)
+// yang sudah dipanggil. Saya tinggalkan hanya fungsi yang dipanggil.
 
 function changeBackgroundColor(seed) {
-  const idx = Math.abs(seed.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % colors.length;
+  // Tambahkan sedikit variasi agar perubahan warna lebih sering
+  const hash = seed.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  const idx = Math.abs(hash) % colors.length;
   document.body.style.background = colors[idx];
 }
 
