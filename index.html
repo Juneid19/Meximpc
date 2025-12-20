@@ -28,12 +28,11 @@
   }
   .cover-wrap {
     position: relative;
-    width: 250px; /* Ubah dari 220px ke 250px */
-    height: 250px; /* Ubah dari 220px ke 250px */
-    margin: 0 auto 25px; /* Center secara horizontal */
-}
-
-.ring {
+    width: 250px;
+    height: 250px;
+    margin: 0 auto 25px;
+  }
+  .ring {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -45,21 +44,19 @@
     animation: spin 3s linear infinite, pulse 2s ease-in-out infinite;
     filter: blur(2px);
     opacity: .8;
-    /* Tidak perlu z-index, biarkan di belakang secara natural */
-}
-
-.cover {
+  }
+  .cover {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 220px; /* Tetap 220px, lebih kecil dari parent */
+    width: 220px;
     height: 220px;
     transform: translate(-50%, -50%);
     border-radius: 50%;
     object-fit: cover;
     box-shadow: 0 0 25px rgba(0,0,0,0.5);
     animation: rotate 10s linear infinite;
-}
+  }
   @keyframes spin {
     from {transform:translate(-50%,-50%) rotate(0deg);}
     to {transform:translate(-50%,-50%) rotate(360deg);}
@@ -68,22 +65,54 @@
     0%,100% {opacity:.8; transform:translate(-50%,-50%) scale(1);}
     50% {opacity:1; transform:translate(-50%,-50%) scale(1.05);}
   }
-  .cover {
-    position:absolute;
-    top:50%; left:50%;
-    width:220px; height:220px;
-    transform:translate(-50%,-50%);
-    border-radius:50%;
-    object-fit:cover;
-    box-shadow:0 0 25px rgba(0,0,0,0.5);
-    animation:rotate 10s linear infinite;
-  }
   @keyframes rotate {
     from {transform:translate(-50%,-50%) rotate(0deg);}
     to {transform:translate(-50%,-50%) rotate(360deg);}
   }
   .paused {animation-play-state:paused;}
-  h2 {color:#fff; margin-bottom:5px;}
+  
+  /* CONTAINER UNTUK JUDUL LAGU */
+  .title-container {
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 5px;
+    min-height: 30px;
+    display: flex;
+    justify-content: center;
+  }
+  
+  #title {
+    color:#fff;
+    white-space: nowrap;
+    display: inline-block;
+    font-size: 1.5rem;
+    transition: all 0.3s ease;
+    text-align: center;
+  }
+  
+  /* Mode berjalan untuk judul panjang */
+  #title.marquee {
+    animation: marquee 15s linear infinite;
+    animation-delay: 1s;
+    padding-right: 50px; /* Memberi ruang untuk efek berjalan */
+  }
+  
+  @keyframes marquee {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+  }
+  
+  /* Mode diam untuk judul pendek */
+  #title.static {
+    transform: none !important;
+    animation: none;
+    width: auto;
+    max-width: 100%;
+    text-overflow: ellipsis;
+    overflow: hidden;
+  }
+  
   h4 {color:#ddd; margin-bottom:10px;}
 
   /* 🖤 LIVE text hitam + bayangan putih lembut */
@@ -126,6 +155,28 @@
     font-size:14px;
     opacity:.8;
   }
+  
+  /* Responsif untuk mobile */
+  @media (max-width: 480px) {
+    .cover-wrap {
+      width: 200px;
+      height: 200px;
+    }
+    .ring {
+      width: 200px;
+      height: 200px;
+    }
+    .cover {
+      width: 180px;
+      height: 180px;
+    }
+    .title-container {
+      min-height: 25px;
+    }
+    #title {
+      font-size: 1.3rem;
+    }
+  }
 </style>
 </head>
 <body>
@@ -134,7 +185,12 @@
     <div class="ring"></div>
     <img id="cover" class="cover" src="https://frpadang.netlify.app/img/default.jpg" />
   </div>
-  <h2 id="title">Firza Radio Tapsel</h2>
+  
+  <!-- Container khusus untuk judul lagu -->
+  <div class="title-container">
+    <h2 id="title">Firza Radio Tapsel</h2>
+  </div>
+  
   <h4 id="artist">Streaming Live</h4>
   <div class="radio-name">LIVE • Padangsidempuan</div>
 
@@ -164,7 +220,7 @@ const listeners = document.getElementById("listeners");
 let isPlaying = false;
 let lastTrack = "";
 
-// --- DATABASE QARI/ARTIS (Disalin dari permintaan Anda sebelumnya) ---
+// --- DATABASE QARI/ARTIS ---
 const qariDatabase = {
     'mishary': 'https://i.ytimg.com/vi/GLMp_EGGLfk/hq720.jpg?sqp=-oaymwExCK4FEIIDSFryq4qpAyMIARUAAIhCGAHwAQH4AdQGgALgA4oCDAgAEAEYciBWKDgwDw==&rs=AOn4CLAa_DZgLB8D4xcMTFPgxpnQghg_sw',
     'abdul': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT99qAcwhSDEUMmxHHzjEfna9YVgtg-04A8rDvXbaNtZf-70ZkRxFPl_i5J_he-DnfdtO7EhS0ouUaiu-hq_bE8Ni9U3xKBjsAdFgzAg4w&s=10',
@@ -176,10 +232,33 @@ const qariDatabase = {
     'shatri': 'https://i.ibb.co/fQ5N204/shatri.jpg',
     'abdul basit': 'https://i.ibb.co/RzM805h/abdulbasit.jpg',
 };
-// ------------------------------------------------------------------
 
 audio.src = stream;
 audio.volume = 0.7;
+
+// --- FUNGSI UNTUK MENGATUR MODE JUDUL (BERJALAN ATAU STATIS) ---
+function updateTitleMode() {
+    const titleContainer = document.querySelector('.title-container');
+    const titleWidth = titleEl.scrollWidth;
+    const containerWidth = titleContainer.offsetWidth;
+    
+    // Hapus semua kelas sebelumnya
+    titleEl.classList.remove('marquee', 'static');
+    
+    // Cek apakah teks lebih panjang dari container
+    if (titleWidth > containerWidth) {
+        // Mode berjalan untuk judul panjang
+        titleEl.classList.add('marquee');
+        console.log('Judul panjang, aktifkan mode berjalan');
+    } else {
+        // Mode statis (center) untuk judul pendek
+        titleEl.classList.add('static');
+        console.log('Judul pendek, mode statis (center)');
+    }
+}
+
+// Panggil fungsi saat window di-resize
+window.addEventListener('resize', updateTitleMode);
 
 playBtn.onclick = () => {
   if (isPlaying) {
@@ -204,7 +283,7 @@ stopBtn.onclick = () => {
 
 refreshBtn.onclick = () => fetchNowPlaying(true);
 
-// --- FUNGSI BARU UNTUK MENCARI COVER ART QARI ---
+// --- FUNGSI UNTUK MENCARI COVER ART QARI ---
 function getQariCover(name) {
     const lowerName = name.toLowerCase().trim();
     for (const key in qariDatabase) {
@@ -214,7 +293,6 @@ function getQariCover(name) {
     }
     return null;
 }
-// ---------------------------------------------------
 
 async function fetchNowPlaying(force = false) {
   try {
@@ -233,7 +311,7 @@ async function fetchNowPlaying(force = false) {
 async function updateInfo(data) {
   let title = data.title?.trim() || "Firza Tapsel";
   let artist = data.artist?.trim() || "Streaming Live";
-  let img = data.thumb; // Cover dari Zeno/API
+  let img = data.thumb;
 
   // Logika Pemisahan Title/Artist untuk format 'Artist - Title'
   if (title.includes(" - ") && (!data.artist || data.artist === "")) {
@@ -247,7 +325,6 @@ async function updateInfo(data) {
   
   if (qariCover) {
     img = qariCover;
-    // Coba perbaiki artist/title jika terdeteksi dari database tapi belum dipisah
     if (artist === "Streaming Live" || artist === "Firza Tapsel" || artist === data.artist) {
         let keyFound = Object.keys(qariDatabase).find(key => title.toLowerCase().includes(key));
         if (keyFound) {
@@ -257,7 +334,6 @@ async function updateInfo(data) {
         }
     }
   }
-
 
   // Jika cover Zeno kosong dan Qari Cover juga kosong, baru coba iTunes (FALLBACK)
   if (!img || img === fallbackCover || img.includes('zenomedia')) {
@@ -272,15 +348,23 @@ async function updateInfo(data) {
           console.warn("iTunes cover fetch failed:", e);
         }
     } else {
-        img = qariCover; // Gunakan cover Qari jika ditemukan di langkah sebelumnya
+        img = qariCover;
     }
   }
 
+  // Update judul dan artis
   titleEl.textContent = title;
   artistEl.textContent = artist;
-  listeners.textContent = "🎵 Live dari Padangsidempuan"; // Atau tambahkan data listeners dari API jika tersedia
+  listeners.textContent = "🎵 Live dari Padangsidempuan";
 
+  // Update cover
   cover.src = img || fallbackCover;
+  
+  // Update mode judul (berjalan atau static)
+  // Gunakan setTimeout kecil agar DOM selesai update
+  setTimeout(updateTitleMode, 10);
+  
+  // Update background
   changeBackgroundColor(title + artist);
 }
 
@@ -291,20 +375,21 @@ const colors = [
   'linear-gradient(135deg,#fa709a,#fee140)',
   'linear-gradient(135deg,#30cfd0,#330867)'
 ];
-let colorIndex = 0;
-
-// Fungsi cycleBackground dihilangkan karena ada fungsi changeBackgroundColor(seed)
-// yang sudah dipanggil. Saya tinggalkan hanya fungsi yang dipanggil.
 
 function changeBackgroundColor(seed) {
-  // Tambahkan sedikit variasi agar perubahan warna lebih sering
   const hash = seed.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
   const idx = Math.abs(hash) % colors.length;
   document.body.style.background = colors[idx];
 }
 
+// Inisialisasi awal
 fetchNowPlaying();
+
+// Update otomatis setiap 10 detik
 setInterval(fetchNowPlaying, 10000);
+
+// Jalankan updateTitleMode sekali saat halaman dimuat
+setTimeout(updateTitleMode, 100);
 </script>
 </body>
 </html>
